@@ -14,7 +14,7 @@ from peft import (
     set_peft_model_state_dict,
 )
 
-from transformers import GenerationConfig, LlamaForCausalLM, LlamaTokenizer,AutoTokenizer
+from transformers import GenerationConfig, AutoTokenizer, AutoModelForCausalLM
 from utils.callbacks import Iteratorize, Stream
 from utils.prompter import Prompter
 if torch.cuda.is_available():
@@ -44,10 +44,10 @@ def main(
     ), "Please specify a --base_model, e.g. --base_model='huggyllama/llama-7b'"
 
     prompter = Prompter(prompt_template)
-    tokenizer = LlamaTokenizer.from_pretrained(base_model)
+    tokenizer = AutoTokenizer.from_pretrained(base_model)
     if not lora_weights_path.endswith(".bin"):
         if device == "cuda":
-            model = LlamaForCausalLM.from_pretrained(
+            model = AutoModelForCausalLM.from_pretrained(
                 base_model,
                 load_in_8bit=load_8bit,
                 torch_dtype=torch.float16,
@@ -59,7 +59,7 @@ def main(
                 torch_dtype=torch.float16,
             )
         elif device == "mps":
-            model = LlamaForCausalLM.from_pretrained(
+            model = AutoModelForCausalLM.from_pretrained(
                 base_model,
                 device_map={"": device},
                 torch_dtype=torch.float16,
@@ -71,7 +71,7 @@ def main(
                 torch_dtype=torch.float16,
             )
         else:
-            model = LlamaForCausalLM.from_pretrained(
+            model = AutoModelForCausalLM.from_pretrained(
                 base_model, device_map={"": device}, low_cpu_mem_usage=True
             )
             model = PeftModel.from_pretrained(
@@ -80,7 +80,7 @@ def main(
                 device_map={"": device},
             )
     else:
-        model = LlamaForCausalLM.from_pretrained(
+        model = AutoModelForCausalLM.from_pretrained(
             base_model,
             load_in_8bit=True,
             torch_dtype=torch.float16,
