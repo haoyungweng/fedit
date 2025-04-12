@@ -78,7 +78,7 @@ def fl_finetune(
     ), "Please specify a --global_model, e.g. --global_modell='decapoda-research/llama-7b-hf'"
 
     data_path = os.path.join(data_path, str(num_clients))
-    assert (os.path.exists(data_path), "Please generate the data files for each client")
+    assert os.path.exists(data_path), "Please generate the data files for each client"
 
     # set up the global model & toknizer
     gradient_accumulation_steps = local_batch_size // local_micro_batch_size
