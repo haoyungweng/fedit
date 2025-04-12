@@ -205,8 +205,8 @@ def fl_finetune(
         config.save_pretrained(output_dir)
 
         # Please design the evaluation method based on your specific requirements in the fed_utils/evaluation.py file.
-        eval_loss = global_evaluation(model, val_data_path, generate_and_tokenize_prompt, 1, 'cuda')
-        print('communication round: ', epoch, ' the eval loss: ', eval_loss)
+        # eval_loss = global_evaluation(model, val_data_path, generate_and_tokenize_prompt, 1, 'cuda')
+        # print('communication round: ', epoch, ' the eval loss: ', eval_loss)
 
 
 if __name__ == "__main__":

@@ -79,8 +79,8 @@ def generate(
     model = prepare_model_for_kbit_training(model)
 
     if fedavg: # global model using fedavg
-        lora_config_path = os.path.join(output_dir, str(communication_rounds), "local_output_0")
-        lora_weights_path = os.path.join(output_dir, str(communication_rounds), "global_model.bin")   
+        lora_config_path = output_dir
+        lora_weights_path = os.path.join(output_dir, str(communication_rounds), "adapter_model.bin")   
     else:
         lora_config_path = os.path.join(output_dir, str(communication_rounds), f"local_output_{client_id}")
         lora_weights_path = os.path.join(lora_config_path, "pytorch_model.bin")
