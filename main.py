@@ -3,12 +3,8 @@ from typing import List
 from tqdm import tqdm
 import fire
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
-from peft import (
-    LoraConfig,
-    get_peft_model,
-    prepare_model_for_kbit_training,
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from fed_utils import FedAvg, client_selection, global_evaluation, GeneralClient
 import datasets
 from utils.prompter import Prompter
@@ -27,22 +23,24 @@ def fl_finetune(
         num_communication_rounds: int = 50,
         num_clients: int = 10,
         # Local training hyperparams
-        local_batch_size: int = 64,  # 64,
+        local_batch_size: int = 128,  # 64,
         local_micro_batch_size: int = 8,
-        local_num_epochs: int = 10,
+        local_num_epochs: int = 3,
         local_learning_rate: float = 3e-4,
         local_val_set_size: int = 0,
+        val_data_path: str = "",
         local_save_steps: int = 3,
         cutoff_len: int = 512,
         # LoRA hyperparams
-        lora_r: int = 16,
+        lora_r: int = 8,
         lora_alpha: int = 16,
         lora_dropout: float = 0.05,
         lora_target_modules: List[str] = [
             "q_proj",
+            "v_proj",
         ],
         # llm hyperparams
-        train_on_inputs: bool = True,
+        train_on_inputs: bool = False,
         group_by_length: bool = False,
         resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
         prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
@@ -90,17 +88,19 @@ def fl_finetune(
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
 
+    bnb_config = BitsAndBytesConfig(
+        load_in_8bit=True,
+    )
+
     model = AutoModelForCausalLM.from_pretrained(
         global_model,
-        load_in_8bit=True,
+        quantization_config=bnb_config,
         torch_dtype=torch.float16,
         device_map=device_map,
     )
 
     tokenizer = AutoTokenizer.from_pretrained(global_model)
-    tokenizer.pad_token_id = (
-        0
-    )
+    tokenizer.pad_token_id = 0
     tokenizer.padding_side = "left"
 
     def tokenize(prompt, add_eos_token=True):
@@ -126,13 +126,13 @@ def fl_finetune(
     def generate_and_tokenize_prompt(data_point):
         full_prompt = prompter.generate_prompt(
             data_point["instruction"],
-            data_point["context"],
-            data_point["response"],
+            data_point["input"] if 'input' in data_point.keys() else None,
+            data_point["output"],
         )
         tokenized_full_prompt = tokenize(full_prompt)
         if not train_on_inputs:
             user_prompt = prompter.generate_prompt(
-                data_point["instruction"], data_point["context"]
+                data_point["instruction"], data_point["input"] if 'input' in data_point.keys() else None,
             )
             tokenized_user_prompt = tokenize(user_prompt, add_eos_token=False)
             user_prompt_len = len(tokenized_user_prompt["input_ids"])
@@ -205,7 +205,8 @@ def fl_finetune(
         config.save_pretrained(output_dir)
 
         # Please design the evaluation method based on your specific requirements in the fed_utils/evaluation.py file.
-        global_evaluation()
+        eval_loss = global_evaluation(model, val_data_path, generate_and_tokenize_prompt, 1, 'cuda')
+        print('communication round: ', epoch, ' the eval loss: ', eval_loss)
 
 
 if __name__ == "__main__":
