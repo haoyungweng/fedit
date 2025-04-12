@@ -50,7 +50,7 @@ class EvalDataset(Dataset):
 def generate(
     base_model: str = "",
     output_dir: str = './lora-shepherd/',
-    fedavg: bool = False,
+    fl: bool = False,
     client_id: int = 0,
     communication_rounds: int = 50,
     prompt_template_name: str = "",  # The prompt template to use, will default to alpaca.
@@ -78,7 +78,7 @@ def generate(
     )
     model = prepare_model_for_kbit_training(model)
 
-    if fedavg: # global model using fedavg
+    if fl: # global model using fl
         lora_config_path = output_dir
         lora_weights_path = os.path.join(output_dir, str(communication_rounds), "adapter_model.bin")   
     else:
